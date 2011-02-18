@@ -88,7 +88,7 @@ module RemoteAPI
   # @return [Handsoap::XmlQueryFront::NodeSelection]
   def call method, *args
     response = build method, self.auth_token, *args
-    response .document.element/("#{RESPONSE_XPATH}/#{method}Return").first
+    response.document.element/"#{RESPONSE_XPATH}"
   end
 
   # A more complex form of {#call} that does a little more work for
