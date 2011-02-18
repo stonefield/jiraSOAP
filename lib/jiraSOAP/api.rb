@@ -21,30 +21,22 @@ module JIRA
 # snake case for method names, default values, varargs, etc..
 # @todo logging
 # @todo progressWorkflowAction and friends [target v0.8]
-# @todo get Nokogiri element directly and monkey patch nokogiri directly
-#  instead of the handsoap wrapper
 # @todo remove the get_ prefix from api methods that don't need them
 # @todo monkey patch Array to include a #to_soap method
-# @todo document how to override the url_class setting
 module RemoteAPI
-
-  # XPath constant to get a node containing a response array.
-  # This could be used for all responses, but is only used in cases where we
-  # cannot use a more blunt XPath expression.
-  RESPONSE_XPATH = '/node()[1]/node()[1]/node()[1]/node()[2]'
-
 
   # @group Logging in/out
 
   # @todo change method name to #login! since we are changing internal state?
+  # @todo move the #build call down into a private method
   # The first method to call; other methods will fail until you are logged in.
   # @param [String] user JIRA user name to login with
   # @param [String] password
   # @return [String] auth_token if successful, otherwise raises an exception
   def login username, password
-    response    = build 'login', username, password
-    self.auth_token = response.document.element./(RESPONSE_XPATH).first.content
-    @user       = user
+    response        = soap_call 'login', username, password
+    self.auth_token = response.first.content
+    @user           = user
     self.auth_token
   end
 
@@ -53,25 +45,28 @@ module RemoteAPI
   # will automatically expire after a set time (configured on the server).
   # @return [Boolean] true if successful, otherwise false
   def logout
-    call( 'logout' ).to_boolean
+    jira_call( 'logout' ).to_boolean
   end
 
   # @endgroup
 
   private
 
+  # XPath constant to get a node containing a response data.
+  RESPONSE_XPATH = '/node()[1]/node()[1]/node()[1]/node()[2]'
+
   # @todo make this method less ugly
-  # @todo double check the return type
+  # @todo handle arrays of strings
   # A generic method for calling a SOAP method and soapifying all
-  # the arguments, adapted for usage with jiraSOAP.
-  # @param [String] method
-  # @param [Object] *args
+  # the arguments.
+  # @param [String] method name of the JIRA SOAP API method
+  # @param [Object] *args the arguments for the method, excluding the
+  #  authentication token
   # @return [Handsoap::Response]
   def build method, *args
     invoke "soap:#{method}" do |msg|
       for i in 0...args.size
-        arg = args.shift
-        case arg
+        case arg = args.shift
         when JIRA::Entity
           msg.add "soap:in#{i}", do |submsg| arg.soapify_for submsg end
         else
@@ -81,25 +76,32 @@ module RemoteAPI
     end
   end
 
-  # @todo find a less blunt XPath expression
+  # @return [Nokogiri::XML::NodeSet]
+  def soap_call method, *args
+    response = build method, *args
+    response .document.element/RESPONSE_XPATH
+  end
+
   # A simple call, for methods that will return a single object.
   # @param [String] method
   # @param [Object] *args
-  # @return [Handsoap::XmlQueryFront::NodeSelection]
-  def call method, *args
-    response = build method, self.auth_token, *args
-    response.document.element/"#{RESPONSE_XPATH}"
+  # @return [Nokogiri::XML::Element]
+  def jira_call method, *args
+    response = soap_call method, self.auth_token, *args
+    response.first
   end
 
   # A more complex form of {#call} that does a little more work for
   # you when you need to build an array of return values.
-  # @param [String] method
-  # @param [Object] *args
-  # @return [Handsoap::XmlQueryFront::NodeSelection]
-  def jira_call type, method, *args
-    response = build method, self.auth_token, *args
-    frags    = response.document.element/"#{RESPONSE_XPATH}/#{method}Return"
-    frags.map { |frag| type.new_with_xml frag }
+  # @param [String] method name of the JIRA SOAP API method
+  # @param [Object] *args the arguments for the method, excluding the
+  #  authentication token
+  # @return [Nokogiri::XML::NodeSet]
+  def array_jira_call type, method, *args
+    response = soap_call method, self.auth_token, *args
+    response.xpath("node()").map { |frag|
+      type.new_with_xml frag
+    }
   end
 
 end

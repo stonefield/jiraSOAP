@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
   s.email       = ['mrada@marketcircle.com']
   s.homepage    = 'http://github.com/Marketcircle/jiraSOAP'
   s.license     = ['MIT']
+  s.has_rdoc    = 'yard'
 
   s.require_paths    = ['lib']
   s.files            = Dir.glob('lib/**/*.rb') + ['yard-jiraSOAP.rb']
@@ -31,7 +32,6 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rake',      ['~> 0.8.7']
   s.add_development_dependency 'bundler',   ['~> 1.0.10']
   s.add_development_dependency 'minitest',  ['~> 2.0.2']
-  s.add_development_dependency 'reek',      ['~> 1.2.8']
   s.add_development_dependency 'yard',      ['~> 0.6.4']
-  s.add_development_dependency 'bluecloth', ['~> 2.0.10']
+  s.add_development_dependency 'bluecloth', ['~> 2.0.11']
 end
